@@ -1,0 +1,252 @@
+// ui/app.slint
+//
+// Frameless Windows 11 style window.
+//
+// The three caption glyphs come from the "Segoe Fluent Icons" font that ships
+// with Windows 11 (private use area code points, same as "Segoe MDL2 Assets"):
+//   \u{E921}  minimize
+//   \u{E922}  maximize
+//   \u{E923}  restore
+//   \u{E8BB}  close
+//
+// Window management (minimize / maximize / restore / close) uses the built-in
+// `minimized`, `maximized`, `hide()` members of the `Window` element (Slint 1.17).
+
+// A single caption button (minimize / maximize / close).
+// The icon is drawn as a glyph, the background animates on hover / press.
+component WindowButton inherits Rectangle {
+    in property <string> glyph;
+    in property <color> hover-color: #ffffff12;   // subtle white, Win11 style
+    in property <color> press-color: #ffffff24;
+    callback clicked;
+
+    width: 46px;   // Windows 11 caption button size
+    height: 32px;
+    background: #00000000;
+
+    animate background { duration: 120ms; easing: ease; }
+
+    states [
+        pressed when touch.pressed : {
+            background: root.press-color;
+        }
+        hovered when touch.has-hover : {
+            background: root.hover-color;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Text {
+        width: 100%;
+        height: 100%;
+        text: root.glyph;
+        font-family: "Segoe Fluent Icons";
+        font-size: 10px;             // Win11 renders caption glyphs at 10px
+        color: #ffffff;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Frameless Slint App";
+    no-frame: true;
+    background: #0A0A0A;
+
+    preferred-width: 960px;
+    preferred-height: 600px;
+    min-width: 620px;
+    min-height: 400px;
+
+    // Lets the user resize the frameless window by dragging its edges.
+    resize-border-width: 6px;
+
+    // Window dragging is not built into Slint, so the title bar reports pointer
+    // positions to Rust, which repositions the window via `set_position()`.
+    callback begin-drag(length, length);
+    callback update-drag(length, length);
+    callback end-drag;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        // ================= custom title bar =================
+        HorizontalLayout {
+            height: 32px;
+            spacing: 0px;
+
+            // Left part: draggable area with app icon + title.
+            drag-area := Rectangle {
+                horizontal-stretch: 1;
+                background: #0A0A0A;
+
+                drag-touch := TouchArea {
+                    property <bool> dragging: false;
+
+                    double-clicked => { root.maximized = !root.maximized; }
+
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                            self.dragging = true;
+                            root.begin-drag(self.mouse-x, self.mouse-y);
+                        } else if (event.kind == PointerEventKind.move && self.dragging) {
+                            root.update-drag(self.mouse-x, self.mouse-y);
+                        } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                            self.dragging = false;
+                            root.end-drag();
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 4px;
+                        background: #4cc2ff;
+                    }
+
+                    Text {
+                        text: "Frameless Slint App";
+                        color: #e8e8e8;
+                        font-family: "Segoe UI";
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Right part: caption buttons, flush with the top-right corner.
+            WindowButton {
+                glyph: "\u{e921}";
+                clicked => { root.minimized = true; }
+            }
+            WindowButton {
+                glyph: root.maximized ? "\u{e923}" : "\u{e922}";
+                clicked => { root.maximized = !root.maximized; }
+            }
+            WindowButton {
+                glyph: "\u{e8bb}";
+                hover-color: #c42b1c;   // Win11 close hover red
+                press-color: #d6402e;   // Win11 close press red
+                clicked => { root.hide(); }
+            }
+        }
+
+        // ================= content area =================
+        Rectangle {
+            vertical-stretch: 1;
+            background: #0a0a0a;
+
+            VerticalLayout {
+                padding: 48px;
+                spacing: 12px;
+
+                Rectangle { height: 0px; vertical-stretch: 1; }
+
+                Text {
+                    width: 100%;
+                    horizontal-alignment: center;
+                    text: "Hello, Windows 11";
+                    font-family: "Segoe UI";
+                    font-size: 34px;
+                    font-weight: 600;
+                    color: #ffffff;
+                }
+
+                Text {
+                    width: 100%;
+                    horizontal-alignment: center;
+                    text: "A frameless Slint window with a custom title bar and Windows 11 caption buttons";
+                    font-family: "Segoe UI";
+                    font-size: 14px;
+                    color: #9b9b9b;
+                }
+
+                Rectangle { height: 16px; }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 12px;
+
+                    Rectangle {
+                        width: 250px;
+                        height: 96px;
+                        border-radius: 12px;
+                        background: #141414;
+                        border-width: 1px;
+                        border-color: #262626;
+
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 4px;
+
+                            Text {
+                                text: "\u{e713}";
+                                font-family: "Segoe Fluent Icons";
+                                font-size: 22px;
+                                color: #4cc2ff;
+                            }
+                            Text {
+                                text: "Custom controls";
+                                font-family: "Segoe UI";
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #ececec;
+                            }
+                            Text {
+                                text: "Minimize · maximize · close";
+                                font-family: "Segoe UI";
+                                font-size: 12px;
+                                color: #8b8b8b;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 250px;
+                        height: 96px;
+                        border-radius: 12px;
+                        background: #141414;
+                        border-width: 1px;
+                        border-color: #262626;
+
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 4px;
+
+                            Text {
+                                text: "\u{e8b7}";
+                                font-family: "Segoe Fluent Icons";
+                                font-size: 22px;
+                                color: #4cc2ff;
+                            }
+                            Text {
+                                text: "Drag to move";
+                                font-family: "Segoe UI";
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #ececec;
+                            }
+                            Text {
+                                text: "Double-click the bar to maximize";
+                                font-family: "Segoe UI";
+                                font-size: 12px;
+                                color: #8b8b8b;
+                            }
+                        }
+                    }
+                }
+
+                Rectangle { height: 0px; vertical-stretch: 1; }
+            }
+        }
+    }
+}

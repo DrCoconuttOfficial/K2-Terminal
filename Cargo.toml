@@ -1,0 +1,17 @@
+[package]
+name = "slint-frameless-app"
+version = "0.1.0"
+edition = "2021"
+description = "A frameless Windows 11 window built with Rust and Slint"
+
+[dependencies]
+slint = "1.17.0"
+
+[build-dependencies]
+slint-build = "1.17.0"
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = true
